@@ -1,5 +1,5 @@
 use blib;
-use Test::More tests => 35;
+use Test::More tests => 36;
 use strict;
 use warnings;
 
@@ -48,6 +48,7 @@ my @expected = (
     "Sebastopol, CA",
     "Graton, CA",
     "Freestone, CA",
+    "Pine Grove, CA",
 );
 
 is( scalar keys %Geo::Coder::US::DB, scalar @expected,

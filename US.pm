@@ -65,7 +65,7 @@ use DB_File;
 use strict;
 use warnings;
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 our %Addr_Match = (
     type    => join("|", keys %Geo::Coder::US::Codes::_Street_Type_List),
@@ -778,6 +778,9 @@ L<http://geocoder.us/>.
 Schuyler Erle <schuyler@nocat.net>
 
 Jo Walsh <jo@frot.org>
+
+Geo::Coder::US incorporates a patch submitted by John P. Linderman. Submit
+a useful patch and get your name added here, too!
 
 =head1 COPYRIGHT AND LICENSE
 

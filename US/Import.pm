@@ -209,8 +209,13 @@ sub _type_C {
     my $fips = $record->{state} . $record->{fips};
     $place_type{$fips} = $1;
 
-    $place_name{$fips} = "$record->{name}, " .
-	$Geo::Coder::US::Codes::State_FIPS{$record->{state}};
+    $record->{name} =~ s/\s*\(.+\)\s*//gos; # cleanup bits with parens
+
+    $place_name{$fips} = $record->{name};
+    if (exists($Geo::Coder::US::Codes::State_FIPS{$record->{state}})) {
+	my $state = $Geo::Coder::US::Codes::State_FIPS{$record->{state}};
+	$place_name{$fips} .= ", $state" if ($state);
+    }
 
     # map fips->name
     $Geo::Coder::US::DB{$fips} = $record->{name};
@@ -235,14 +240,17 @@ sub load_tiger_data {
     my $DB = \%Geo::Coder::US::DB;
     croak "No database specified" unless tied( %$DB );
 
-    open TIGER, "<$source.RTC" or die "can't read $source.RTC: $!";
+    open TIGER, "<$source.RTC" or croak "can't read $source.RTC: $!";
     Geo::TigerLine::Record::C->parse_file( \*TIGER, \&_type_C );
 
-    open TIGER, "<$source.RT1" or die "can't read $source.RT1: $!";
+    open TIGER, "<$source.RT1" or croak "can't read $source.RT1: $!";
     Geo::TigerLine::Record::1->parse_file( \*TIGER, \&_type_1 );
 
-    open TIGER, "<$source.RT6" or die "can't read $source.RT6: $!";
-    Geo::TigerLine::Record::6->parse_file( \*TIGER, \&_type_6 );
+    if (open TIGER, "<$source.RT6") {
+	Geo::TigerLine::Record::6->parse_file( \*TIGER, \&_type_6 );
+    } else {
+	carp "can't read $source.RT6: $!";
+    }
 
     while (my ($path, $tlids) = each %street) {
 	my @segments = @seg{keys %$tlids};
@@ -268,11 +276,17 @@ sub load_tiger_data {
     # ZIP code -> FIPS mapping
     $DB->{$_} = pack "w", $zip_to_fips{$_} for keys %zip_to_fips;
 
-    open TIGER, "<$source.RT4" or die "can't read $source.RT4: $!";
-    Geo::TigerLine::Record::4->parse_file( \*TIGER, \&_type_4 );
+    if (open TIGER, "<$source.RT4") {
+	Geo::TigerLine::Record::4->parse_file( \*TIGER, \&_type_4 );
+    } else {
+	carp "can't read $source.RT4: $!";
+    }
 
-    open TIGER, "<$source.RT5" or die "can't read $source.RT5: $!";
-    Geo::TigerLine::Record::5->parse_file( \*TIGER, \&_type_5 );
+    if (open TIGER, "<$source.RT5") {
+	Geo::TigerLine::Record::5->parse_file( \*TIGER, \&_type_5 );
+    } else {
+	carp "can't read $source.RT5: $!";
+    }
 
     $DB->{$_} ||= join ",", keys %{$alt{$_}} for keys %alt;
 
@@ -285,18 +299,20 @@ sub _fips55 {
     my $record = shift;
     my $DB = \%Geo::Coder::US::DB;
     return unless $record->{name} and $record->{state}
-	    and $record->{class} =~ /^[CUT]|^Z1/o
-	    and $record->{part_of};
+	    and $record->{class} =~ /^[CUT]|^Z1/o;
 
-    my $part_of = sprintf("%02d%05d", 
-	    $record->{state_fips}, $record->{part_of});
-    return unless exists $DB->{$part_of}; 
+    for my $type ( "part_of", "other_name" ) {
+	next unless $record->{$type};
 
-    my $name = "$record->{name}, $record->{state}";
-    $name =~ s/\s*\(.+\)\s*//gos; # cleanup bits with parens
-    return if $name =~ /^\d/o or exists $DB->{$name};
+	my $fips = sprintf("%02d%05d", $record->{state_fips}, $record->{$type});
+	next unless exists $DB->{$fips}; 
 
-    $DB->{$name} = pack "w", $part_of;
+	my $name = "$record->{name}, $record->{state}";
+	$name =~ s/\s*\(.+\)\s*//gos; # cleanup bits with parens
+	next if $name =~ /^\d/o or exists $DB->{$name};
+
+	$DB->{$name} = pack "w", $fips;
+    }
 }
 
 sub load_fips_data {

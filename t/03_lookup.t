@@ -1,5 +1,5 @@
 use blib;
-use Test::More tests => 56;
+use Test::More tests => 59;
 use strict;
 use warnings;
 use Data::Dumper;
@@ -188,6 +188,20 @@ my %address = (
           }
         ],
 "1005 Gravenstein Hwy N, Freestone CA" => [
+          {
+            'number' => 1005,
+            'lat' => '38.411908',
+            'street' => 'Gravenstein',
+            'state' => 'CA',
+            'city' => 'Sebastopol',
+            'zip' => '95472',
+            'suffix' => 'N',
+            'long' => '-122.842232',
+            'type' => 'Hwy',
+            'prefix' => ''
+          }
+        ],
+"1005 Gravenstein Hwy N, Pine Grove CA" => [
           {
             'number' => 1005,
             'lat' => '38.411908',
