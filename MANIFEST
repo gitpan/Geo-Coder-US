@@ -10,6 +10,7 @@ eg/geocode_benchmark.pl
 eg/geocode_cli.pl
 eg/import_tiger.pl
 eg/import_tiger_zip.pl
+eg/import_fips.pl
 eg/clients/rest.pl
 eg/clients/soap.pl
 eg/clients/xmlrpc.pl
@@ -29,6 +30,7 @@ t/ORA.RT4
 t/ORA.RT5
 t/ORA.RT6
 t/ORA.RTC
+t/ORA.FIPS
 t/TIGRRR.RT1
 t/TIGRRR.RT4
 t/TIGRRR.RT5

@@ -1,5 +1,5 @@
 use blib;
-use Test::More tests => 34;
+use Test::More tests => 35;
 use strict;
 use warnings;
 
@@ -17,6 +17,7 @@ is( tied(%Geo::Coder::US::DB), $Geo::Coder::US::DBO,
 is( keys %Geo::Coder::US::DB, 0, "Database is empty before import" );
 
 Geo::Coder::US::Import->load_tiger_data( "$path/ORA" );
+Geo::Coder::US::Import->load_fips_data( "$path/ORA.FIPS" );
 
 my @expected = (
     "/94931/Gravenstein/Hwy//",
@@ -46,6 +47,7 @@ my @expected = (
     "95444",
     "Sebastopol, CA",
     "Graton, CA",
+    "Freestone, CA",
 );
 
 is( scalar keys %Geo::Coder::US::DB, scalar @expected,
@@ -55,3 +57,5 @@ is( exists $Geo::Coder::US::DB{$_}, 1, "Database has key $_"  )
 
 my @stuff = unpack "w*", $Geo::Coder::US::DB{"/95472/Gravenstein/Hwy//N"};
 is( scalar(@stuff), 241, "Gravenstein Hwy N has correct number of items" );
+
+

@@ -10,6 +10,8 @@ Geo::Coder::US::Import - Import TIGER/Line data into a Geo::Coder::US database
 
   Geo::Coder::US::Import->load_tiger_data( "TGR06075" );
 
+  Geo::Coder::US::Import->load_fips_data( "All_fips55.txt" );
+
 =head1 DESCRIPTION
 
 Geo::Coder::US::Import provides methods for importing TIGER/Line data
@@ -45,10 +47,16 @@ import_tiger_zip.pl on each TIGER/Line ZIP separately:
   $ find ~/tiger -name '*.zip' | \
 	xargs -n1 perl eg/import_tiger_zip.pl geocoder.db
 
-Note that you can make a perfectly good geocoder for a particular region
-of the US by simply importing only the TIGER/Line files for the region
-you're interested in. You only need to import all of the TIGER/Line data
-sets in the event that you want a geocoder for the whole US.
+Similarly, you can import FIPS-55 place name data into a
+Geo::Coder::US database with eg/import_fips.pl:
+
+  $ perl eg/import_fips.pl geocoder.db All_fips55.txt
+
+Note that you can make a perfectly good geocoder for a particular
+region of the US by simply importing only the TIGER/Line and FIPS-55
+files for the region you're interested in. You only need to import all
+of the TIGER/Line data sets in the event that you want a geocoder for
+the whole US.
 
 =cut
 
@@ -61,6 +69,7 @@ use Geo::TigerLine::Record::4;
 use Geo::TigerLine::Record::5;
 use Geo::TigerLine::Record::6;
 use Geo::TigerLine::Record::C;
+use Geo::Fips55;
 use Carp;
 use strict;
 use warnings;
@@ -84,6 +93,12 @@ as part of $tiger_basename or load_tiger_data() will become cranky.
 Note that you B<must> first call Geo::Coder::US->set_db() with a second
 argument with a true value, or set_db() won't open the database for
 writing.
+
+=item load_fips_data( $fips_file )
+
+Loads all the data from the specified FIPS-55 gazetteer file. This
+provides additional or alternate place name data to supplement
+TIGER/Line.
 
 =cut
 
@@ -216,8 +231,8 @@ sub _compress_segments {
 
 sub load_tiger_data {
     my ($class, $source) = @_;
-    my $DB = \%Geo::Coder::US::DB;
 
+    my $DB = \%Geo::Coder::US::DB;
     croak "No database specified" unless tied( %$DB );
 
     open TIGER, "<$source.RTC" or die "can't read $source.RTC: $!";
@@ -264,6 +279,32 @@ sub load_tiger_data {
     %tlid = %street = %place = %seg = %feat = %alt 
 	  = %place_type = %place_name 
 	  = %zip_to_fips = %fips_to_zip = ();
+}
+
+sub _fips55 {
+    my $record = shift;
+    my $DB = \%Geo::Coder::US::DB;
+    return unless $record->{name} and $record->{state}
+	    and $record->{class} =~ /^[CUT]|^Z1/o
+	    and $record->{part_of};
+
+    my $part_of = sprintf("%02d%05d", 
+	    $record->{state_fips}, $record->{part_of});
+    return unless exists $DB->{$part_of}; 
+
+    my $name = "$record->{name}, $record->{state}";
+    $name =~ s/\s*\(.+\)\s*//gos; # cleanup bits with parens
+    return if $name =~ /^\d/o or exists $DB->{$name};
+
+    $DB->{$name} = pack "w", $part_of;
+}
+
+sub load_fips_data {
+    my ($class, $source) = @_;
+    croak "No database specified" unless tied( %Geo::Coder::US::DB );
+
+    open TIGER, "<$source" or die "can't read $source: $!";
+    Geo::Fips55->parse_file( \*TIGER, \&_fips55 );
 }
 
 =item load_rtC( $tiger_basename )
@@ -315,18 +356,25 @@ alive. Contact me if you can offer funding or mirroring.
 
 =head1 SEE ALSO
 
-Geo::Coder::US(3pm), Geo::TigerLine(3pm), DB_File(3pm), Archive::Zip(3pm)
+Geo::Coder::US(3pm), Geo::TigerLine(3pm), Geo::Fips55(3pm),
+DB_File(3pm), Archive::Zip(3pm)
 
-eg/import_tiger.pl, eg/import_tiger_zip.pl
+eg/import_tiger.pl, eg/import_tiger_zip.pl, eg/import_fips.pl
 
 You can download the latest TIGER/Line data (as of this writing) from:
 
 L<http://www.census.gov/geo/www/tiger/tiger2003/tgr2003.html>
 
+You can get the latest FIPS-55 data from:
+
+L<http://geonames.usgs.gov/fips55/fips55.html>
+
 If you have copious spare time, you can slog through the TIGER/Line 2003
-technical manual:
+and FIPS-55-3 technical manuals:
 
 L<http://www.census.gov/geo/www/tiger/tiger2003/TGR2003.pdf>
+
+L<http://www.itl.nist.gov/fipspubs/fip55-3.htm>
 
 Finally, a few words about FIPS-55-3 class codes:
 

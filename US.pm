@@ -65,7 +65,7 @@ use DB_File;
 use strict;
 use warnings;
 
-our $VERSION = '0.10';
+our $VERSION = '0.20';
 
 our %Addr_Match = (
     type    => join("|", keys %Geo::Coder::US::Codes::_Street_Type_List),
@@ -360,7 +360,20 @@ sub find_streets {
     if ( $args->{city} and $args->{state} and not $args->{zip} ) {
 	my $city = "$args->{city}, $args->{state}";
 	return unless exists $DB{$city};
-	@zips = map { sprintf "%05d", $_ } unpack "w*", $DB{$city};
+	@zips = unpack "w*", $DB{$city};
+
+	# city, state might point to the FIPS code of the 
+	# place that encompasses it. in which case, get the place
+	# name for *that* FIPS code and try again.
+	if (@zips == 1 and $zips[0] > 99999) {
+	    my $fips = sprintf "%07d", $zips[0];
+	    $city = "$DB{$fips}, $args->{state}";
+	    return unless exists $DB{$city};
+	    @zips = unpack "w*", $DB{$city};
+	}
+
+	# finally, format the ZIP codes
+	@zips = map { sprintf "%05d", $_ } @zips;
     } else {
 	@zips = $args->{zip};
     }
@@ -406,6 +419,8 @@ sub find_ranges {
     my @streets = $class->find_streets($args);
     my $number = $args->{number};
     my @results;
+
+    $number =~ s/\D//gos; # remove non-numerics, e.g. dashes
 
     for my $street (@streets) {
 	my ($fips, @data) = unpack "w*", $DB{$street};

@@ -23,7 +23,7 @@ if (my $addr = $data{address}) {
     my @matches = Geo::Coder::US->geocode($addr);
     my $n = $data{match} || 0;
 
-    @matches = $matches[$n] if $matches[--$n];
+    @matches = $matches[$n] if $n and $matches[--$n];
 
     if (@matches == 1) {
 	my $match = shift @matches;

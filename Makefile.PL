@@ -7,6 +7,7 @@ WriteMakefile(
     VERSION_FROM      => 'US.pm', # finds $VERSION
     PREREQ_PM         => {
 	Geo::TigerLine	=> "0.02",
+	Geo::Fips55	=> "0.01",
 	DB_File		=> 0,
 	Test::More	=> "0.47"
     }, 
