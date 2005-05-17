@@ -1,9 +1,3 @@
-<html>
-<head>
-    <title>geocoder.us: a free US geocoder</title>
-    <link rel="stylesheet" href="style.css" />
-</head>
-<body>
 
 [% INSERT header.html %]
 <form>
@@ -22,8 +16,8 @@
 
 	    [% FOREACH matches %]
 		    <tr>
-			<td align="center">[% lat %]</td>
-			<td align="center">[% long %]</td>
+			<td align="center">[% lat %] &deg;</td>
+			<td align="center">[% long %] &deg;</td>
 		<td align="center">
 		[% IF street1 %]
 		    [% prefix1 %] [% street1 %]
@@ -44,6 +38,3 @@
 	[% END %]
 	</table>
 [% INSERT footer.html %]
-</body>
-</html>
-

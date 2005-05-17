@@ -1,6 +1,5 @@
 #!/usr/bin/perl 
 
-use blib;
 use Geo::Coder::US;
 use Term::ReadLine;
 use Data::Dumper;

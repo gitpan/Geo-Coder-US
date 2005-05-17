@@ -63,7 +63,7 @@ the whole US.
 package Geo::Coder::US::Import;
 
 use Geo::Coder::US;
-use Geo::Coder::US::Codes;
+use Geo::StreetAddress::US;
 use Geo::TigerLine::Record::1;
 use Geo::TigerLine::Record::4;
 use Geo::TigerLine::Record::5;
@@ -108,15 +108,24 @@ sub _fixup_directionals {
     # fix up direction prefix embedded in feature name
     # either a full or abbreviated directional
     $record->{fedirp} =
-	    $Geo::Coder::US::Codes::Directional{lc $1} || uc $1
+	    $Geo::StreetAddress::US::Directional{lc $1} || uc $1
 	if not $record->{fedirp} and $record->{fename} =~ 
-	    s/^($Geo::Coder::US::Addr_Match{direct})\s+(?=\S)//ios;
+	    s/^($Geo::StreetAddress::US::Addr_Match{direct})\s+(?=\S)//ios;
 
     # do the same for suffixes
     $record->{fedirs} =
-	    $Geo::Coder::US::Codes::Directional{lc $1} || uc $1
+	    $Geo::StreetAddress::US::Directional{lc $1} || uc $1
 	if not $record->{fedirs} and $record->{fename} =~ 
-	    s/(?<=\S)\s+($Geo::Coder::US::Addr_Match{direct})$//ios;
+	    s/(?<=\S)\s+($Geo::StreetAddress::US::Addr_Match{direct})$//ios;
+}
+
+sub _add_range {
+    my ($tlid, $side, $from, $to) = @_;
+
+    s/\D//go for ($from, $to);
+
+    # each value in %seg is [lat, lon, lat, lon, [right side], [left side]]
+    push @{$seg{$tlid}[$side eq "r" ? 4 : 5]}, $from, $to;
 }
 
 sub _type_1 {
@@ -125,9 +134,10 @@ sub _type_1 {
 
     my $tlid = $record->{tlid};
 
-    push @{$seg{$tlid}},
-	map(abs, @$record{qw{ frlat frlong tolat tolong }})
-	unless $seg{$tlid};
+    
+    # each value in %seg is [lat, lon, lat, lon, [right side], [left side]]
+    $seg{$tlid} ||= 
+	[ map(abs, @$record{qw{ frlat frlong tolat tolong }}), [], [] ];
 
     # fix up direction prefix embedded in feature name
     _fixup_directionals($record);
@@ -144,8 +154,7 @@ sub _type_1 {
 		and $zip =~ /^\d{5}$/os
 		and $zip ne '99999';
 
-	s/\D//go for ($from, $to);
-	push @{$seg{$tlid}}, $from, $to;
+	_add_range( $tlid, $side, $from, $to );
 
 	my $key = 
 	    join("/", "", $zip, @$record{qw{ fename fetype fedirp fedirs }});
@@ -192,12 +201,9 @@ sub _type_6 {
     return unless exists $seg{$tlid};
 
     for my $side ("r", "l") {
-	my ($from, $to, $zip) = 
-	    @$record{"fradd$side", "toadd$side", "zip$side"};
-	next unless $from and $to and $zip;
-
-	s/\D//go for ($from, $to);
-	push @{$seg{$tlid}}, $from, $to;
+	my ($from, $to, $zip) = @$record{"fradd$side", "toadd$side"};
+	next unless $from and $to;
+	_add_range( $tlid, $side, $from, $to );
     }
 }
 
@@ -212,8 +218,8 @@ sub _type_C {
     $record->{name} =~ s/\s*\(.+\)\s*//gos; # cleanup bits with parens
 
     $place_name{$fips} = $record->{name};
-    if (exists($Geo::Coder::US::Codes::State_FIPS{$record->{state}})) {
-	my $state = $Geo::Coder::US::Codes::State_FIPS{$record->{state}};
+    if (exists($Geo::StreetAddress::US::State_FIPS{$record->{state}})) {
+	my $state = $Geo::StreetAddress::US::State_FIPS{$record->{state}};
 	$place_name{$fips} .= ", $state" if ($state);
     }
 
@@ -225,8 +231,9 @@ sub _compress_segments {
     my @segments = @_;
     my $thunk;
     while (my $item = shift @segments) {
-	my ($frlat, $frlong, $tolat, $tolong, @ranges) = @$item;
-	$thunk .= pack("w*", $frlat, $frlong, @ranges);
+	my ($frlat, $frlong, $tolat, $tolong, $right, $left) = @$item;
+	$thunk .= pack("w*", $frlat, $frlong, @$right);
+	$thunk .= pack("w*", 0, @$left) if @$left;
 	next if @segments and $segments[0][0] == $tolat
 			  and $segments[0][1] == $tolong;
 	$thunk .= pack("w*", $tolat, $tolong);
@@ -254,13 +261,27 @@ sub load_tiger_data {
 
     while (my ($path, $tlids) = each %street) {
 	my @segments = @seg{keys %$tlids};
-	my ($thunk1, $thunk2);
+	my @thunk;
 
-	$thunk1 = _compress_segments( sort { $a->[5] <=> $b->[5] } @segments );
-	$thunk2 = _compress_segments( sort { $b->[5] <=> $a->[5] } @segments );
+	# right side first, ascending
+	$thunk[0] = _compress_segments( sort { 
+	    ($a->[4][0] || $a->[5][0]) <=> ($b->[4][0] || $b->[5][0])
+	    } @segments );
+	# right side first, descending
+	$thunk[1] = _compress_segments( sort { 
+	    ($b->[4][0] || $b->[5][0]) <=> ($a->[4][0] || $a->[5][0])
+	    } @segments );
+	# left side first, ascending
+	$thunk[2] = _compress_segments( sort { 
+	    ($a->[5][0] || $a->[4][0]) <=> ($b->[5][0] || $b->[4][0])
+	    } @segments );
+	# left side first, descending
+	$thunk[3] = _compress_segments( sort { 
+	    ($b->[5][0] || $b->[4][0]) <=> ($a->[5][0] || $a->[4][0])
+	    } @segments );
 
-	$DB->{$path} = pack("w", $place{$path}) . 
-	    (length($thunk1) > length($thunk2) ? $thunk2 : $thunk1);
+	@thunk = sort { length($a) <=> length($b) } @thunk;
+	$DB->{$path} = pack("w", $place{$path}) . $thunk[0];
     }
 
     # place name -> zip codes mapping
@@ -372,14 +393,14 @@ alive. Contact me if you can offer funding or mirroring.
 
 =head1 SEE ALSO
 
-Geo::Coder::US(3pm), Geo::TigerLine(3pm), Geo::Fips55(3pm),
-DB_File(3pm), Archive::Zip(3pm)
+Geo::Coder::US(3pm), Geo::StreetAddress::US(3pm), Geo::TigerLine(3pm),
+Geo::Fips55(3pm), DB_File(3pm), Archive::Zip(3pm)
 
 eg/import_tiger.pl, eg/import_tiger_zip.pl, eg/import_fips.pl
 
 You can download the latest TIGER/Line data (as of this writing) from:
 
-L<http://www.census.gov/geo/www/tiger/tiger2003/tgr2003.html>
+L<http://www.census.gov/geo/www/tiger/tiger2004fe/tgr2004fe.html>
 
 You can get the latest FIPS-55 data from:
 
@@ -391,6 +412,8 @@ and FIPS-55-3 technical manuals:
 L<http://www.census.gov/geo/www/tiger/tiger2003/TGR2003.pdf>
 
 L<http://www.itl.nist.gov/fipspubs/fip55-3.htm>
+
+The TIGER/Line 2004 FE schema is more or less unchanged from 2003.
 
 Finally, a few words about FIPS-55-3 class codes:
 

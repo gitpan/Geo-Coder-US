@@ -24,4 +24,4 @@ $code{$_} = eval qq/sub { Geo::Coder::US->geocode("$addr{$_}") }/
 # prime the database connection
 Geo::Coder::US->geocode( $addr{inter_by_zip} );
 
-timethese( 1000, \%code );
+timethese( 500, \%code );

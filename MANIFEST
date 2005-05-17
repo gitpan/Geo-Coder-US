@@ -3,7 +3,6 @@ Makefile.PL
 MANIFEST
 README
 US.pm
-US/Codes.pm
 US/Import.pm
 eg/bdb_lookup.pl
 eg/geocode_benchmark.pl
@@ -21,7 +20,6 @@ eg/demo/form.html
 eg/demo/header.html
 eg/demo/multiple.html
 eg/demo/single.html
-t/01_parser.t
 t/02_import.t
 t/03_lookup.t
 t/04_tigrrr.t

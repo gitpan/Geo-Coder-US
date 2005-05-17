@@ -22,11 +22,10 @@ SYNOPSIS
 DESCRIPTION
     Geo::Coder::US provides a complete facility for geocoding US addresses,
     that is, estimating the latitude and longitude of any street address or
-    intersection in the United States. Geo::Coder::US relies on US Census
-    Bureau TIGER/Line data. Using Geo::TigerLine to parse this data, and
-    DB_File to store a highly compressed distillation of it, the
-    Geo::Coder::US suite also implements a reasonably forgiving US address
-    parser, which it uses to break addresses into normalized components
+    intersection in the United States, using the TIGER/Line data set from
+    the US Census Bureau. Geo::Coder::US uses Geo::TigerLine to parse this
+    data, and DB_File to store a highly compressed distillation of it, and
+    Geo::StreetAddress::US to parse addresses into normalized components
     suitable for looking up in its database.
 
     You can find a live demo of this code at <http://geocoder.us/>. The
@@ -88,28 +87,11 @@ METHODS
         following section on the structure of the returned address and
         intersection specifiers.
 
-    Geo::Coder::US->normalize_address( $spec )
-        Takes an address or intersection specifier, and normalizes its
-        components, stripping out all leading and trailing whitespace and
-        punctuation, and substituting official abbreviations for prefix,
-        suffix, type, and state values. Also, city names that are prefixed
-        with a directional abbreviation (e.g. N, NE, etc.) have the
-        abbreviation expanded. The normalized specifier is returned.
+    Geo::Coder::US->geocode_address( $string )
+        Works exactly like geocode(), but only parses addresses.
 
-    Geo::Coder::US->parse_location( $string )
-        Parses any address or intersection string and returns the
-        appropriate specifier, by calling parse_intersection() or
-        parse_address() as needed.
-
-    Geo::Coder::US->parse_address( $address_string )
-        Parses a street address into an address specifier, returning undef
-        if the address cannot be parsed. You probably want to use
-        parse_location() instead.
-
-    Geo::Coder::US->parse_intersection( $intersection_string )
-        Parses an intersection string into an intersection specifier,
-        returning undef if the address cannot be parsed. You probably want
-        to use parse_location() instead.
+    Geo::Coder::US->geocode_intersection( $string )
+        Works exactly like geocode(), but only parses intersections.
 
     Geo::Coder::US->filter_ranges( $spec, @candidates )
         Filters a list of address specifiers (presumably from the database)
@@ -124,15 +106,15 @@ METHODS
         ignores prefix, suffix, and type fields in the specifier for search
         purposes, and then filters against them ex post facto. The intention
         for find_ranges() to find the closest match possible in preference
-        to returning nothing. You probably want to use geocode_ranges()
+        to returning nothing. You probably want to use lookup_ranges()
         instead, which will call find_ranges() for you.
 
-    Geo::Coder::US->geocode_ranges( $address_spec, @ranges )
+    Geo::Coder::US->lookup_ranges( $address_spec, @ranges )
         Given an address specifier and (optionally) some address ranges from
         the database, interpolate the street address into the street segment
         referred to by the address range, and return a latitude and
         longitude for the given address within each of the given ranges. If
-        @ranges is not given, geocode_ranges() calls find_ranges() with the
+        @ranges is not given, lookup_ranges() calls find_ranges() with the
         given address specifier, and uses those returned. You probably want
         to just use geocode() instead, which also parses an address string
         and determines whether it's a proper address or an intersection
@@ -145,10 +127,10 @@ METHODS
         fields in the specifier for search purposes, and then filters
         against them ex post facto. The intention for find_segments() to
         find the closest match possible in preference to returning nothing.
-        You probably want to use geocode_intersection() instead, which will
+        You probably want to use lookup_intersection() instead, which will
         call find_segments() for you.
 
-    Geo::Coder::US->geocode_intersection( $intersection_spec )
+    Geo::Coder::US->lookup_intersection( $intersection_spec )
         Given an intersection specifier, return all of the intersections in
         the database between the two streets specified, plus a latitude and
         longitude for each intersection. You probably want to just use
@@ -230,13 +212,7 @@ CALLING CONVENTIONS
         above. If you provide these values as part of an argument to a
         Geo::Coder::US method, they will be ignored.
 
-DATA MODEL
-    Geo::Coder::US instantiates several subclasses for the purposes of
-    modelling TIGER/Line street data. Although you will probably not need to
-    use or think about these subclasses, they are described here for
-    completeness's sake, yadda yadda.
-
-BUGS, CAVEATS, ETC.
+BUGS, CAVEATS, MISCELLANY
     The TIGER/Line data is notoriously buggy and inaccurate, but it seems to
     work reasonably well for urban areas. Geo::Coder::US uses interpolation
     to estimate the position of a particular address within a block, which
@@ -264,10 +240,8 @@ BUGS, CAVEATS, ETC.
     The full TIGER/Line data set is one heck of a lot of data -- about four
     gigabytes compressed, and over 24 gigs uncompressed. The BerkeleyDB
     database covering the whole US runs to 750+ megabytes uncompressed, or
-    about 305 megs compressed. I'd really like to host this somewhere so
-    that people can just download the database itself, rather than having to
-    download the whole TIGER/Line data set just to build the geocoder
-    database. Contact us if you can offer a mirror site.
+    about 305 megs compressed. Unfortunately, I am not at present able to
+    offer copies for download.
 
     It would be nice to see a version of this for other countries, e.g.
     Geo::Coder::CA, Geo::Coder::DK, Geo::Coder::UK, with the same methods.
@@ -277,16 +251,12 @@ BUGS, CAVEATS, ETC.
     you waiting for?
 
 TODO
-    A web service and client to access this data, so that people can reuse
-    other people's geocoders.
-
-    A means of importing FIPS-55-3 or perhaps ZIP code data so that places
-    can be geocoded by alternate place names. For example, this geocoder
-    won't geocode addresses in Ventura, CA properly because the official
-    name of the city is San Buenaventura, but no one actually calls it that.
-
     Reverse geocoding methods, to retrieve the nearest street address from a
-    given lat/long.
+    given lat/long. This would probably necessitate using a R-tree or some
+    other spatial indexing algorithm.
+
+    A metaphone index, for doing fuzzy matching on misspelled street and
+    place names.
 
 SEE ALSO
     DB_File(3pm), Geo::TigerLine(3pm), Geo::Coder::US::Import(3pm)
@@ -294,14 +264,20 @@ SEE ALSO
     TIGER/Line is a registered trademark of the US Census Bureau. Find out
     more, and get the latest TIGER/Line files from
     <http://www.census.gov/geo/www/tiger/>. Actually, the best place to
-    download the data from is <http://www2.census.gov/geo/tiger/tiger2003/>.
+    download the data from is
+    <http://www2.census.gov/geo/tiger/tiger2004fe/>.
 
-    You can find a live demo of this code at <http://geocoder.us/>.
+    You can find a live demo of this code at <http://geocoder.us/>. Our
+    consultancy, Locative Technologies, offers service and support for this
+    software on a contractual basis.
 
 AUTHORS
     Schuyler Erle <schuyler@nocat.net>
 
     Jo Walsh <jo@frot.org>
+
+    Geo::Coder::US incorporates a patch submitted by John P. Linderman.
+    Submit a useful patch and get your name added here, too!
 
 COPYRIGHT AND LICENSE
     Copyright (C) 2004 by Schuyler Erle and Jo Walsh

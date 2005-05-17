@@ -1,5 +1,5 @@
 use blib;
-use Test::More tests => 59;
+use Test::More tests => 62;
 use strict;
 use warnings;
 use Data::Dumper;
@@ -118,6 +118,20 @@ my %address = (
           }
         ],
 "1005 Gravenstein Hwy N, 95472" => [
+          {
+            'number' => '1005',
+            'lat' => '38.411908',
+            'street' => 'Gravenstein',
+            'state' => 'CA',
+            'city' => 'Sebastopol',
+            'zip' => '95472',
+            'suffix' => 'N',
+            'long' => '-122.842232',
+            'type' => 'Hwy',
+            'prefix' => ''
+          }
+        ],
+"1005 Gravenstein Hwy N, Sebastopol, CA 95444" => [ #wrong zip
           {
             'number' => '1005',
             'lat' => '38.411908',
@@ -258,6 +272,20 @@ my %address = (
             'prefix' => ''
           }
         ],
+"9142 Gravenstein Hwy N, Sebastopol CA" => [ # closest match
+          {
+            'number' => 5101,
+            'lat' => '38.458512',
+            'street' => 'Gravenstein',
+            'state' => 'CA',
+            'zip' => '95472',
+            'city' => 'Sebastopol',
+            'suffix' => 'N',
+            'long' => '-122.874204',
+            'type' => 'Hwy',
+            'prefix' => ''
+          }
+        ],
 "7800 Mill Station Rd, Sebastopol CA" => [
           {
             'number' => 7800,
@@ -310,7 +338,6 @@ my %address = (
 
 my @fail = (
     "42nd & Broadway, New York, NY",
-    "9142 Gravenstein Hwy N, Sebastopol, CA",
     "Gravenstein Hwy N & Your Mom, 95472",
 );
 

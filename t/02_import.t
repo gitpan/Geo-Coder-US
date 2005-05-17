@@ -1,5 +1,5 @@
 use blib;
-use Test::More tests => 36;
+use Test::More tests => 37;
 use strict;
 use warnings;
 
@@ -10,11 +10,11 @@ my $path = (-r "ORA.RT1" ? "." : "t");
 
 unlink "$path/sample.db"; # in case tests ran previously
 
-Geo::Coder::US->set_db( "$path/sample.db", 1 );
-isa_ok( $Geo::Coder::US::DBO, "DB_File", "BDB object" );
-is( tied(%Geo::Coder::US::DB), $Geo::Coder::US::DBO, 
-    "BDB hash is tied correctly" );
-is( keys %Geo::Coder::US::DB, 0, "Database is empty before import" );
+my $db = Geo::Coder::US->set_db( "$path/sample.db", 1 );
+isa_ok( Geo::Coder::US->db_file, "DB_File", "BDB object" );
+is( tied(%$db), Geo::Coder::US->db_file, "BDB hash is tied correctly" );
+is( $db, Geo::Coder::US->db, "->db returns the right thing" );
+is( keys %$db, 0, "Database is empty before import" );
 
 Geo::Coder::US::Import->load_tiger_data( "$path/ORA" );
 Geo::Coder::US::Import->load_fips_data( "$path/ORA.FIPS" );
@@ -57,6 +57,6 @@ is( exists $Geo::Coder::US::DB{$_}, 1, "Database has key $_"  )
     for @expected;
 
 my @stuff = unpack "w*", $Geo::Coder::US::DB{"/95472/Gravenstein/Hwy//N"};
-is( scalar(@stuff), 241, "Gravenstein Hwy N has correct number of items" );
+is( scalar(@stuff), 277, "Gravenstein Hwy N has correct number of items" );
 
 

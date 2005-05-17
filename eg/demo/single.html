@@ -1,8 +1,4 @@
-<html>
-<head>
-    <title>geocoder.us: a free US address geocoder</title>
-    <link rel="stylesheet" href="style.css" />
-</head>
+[% INSERT header.html %]
 
 <script language="JavaScript">
     function getOffsets (evt) {
@@ -86,8 +82,6 @@
     }
 </script>
 
-<body>
-[% INSERT header.html %]
   <table width="90%" cellspacing="20%" border="0">
   <tr valign="top">
     <td>
@@ -128,11 +122,11 @@
 </tr>
 <tr>
     <td><h3>Latitude</h3></td>
-    <td>[% lat %]</td>
+    <td>[% lat %] &deg;</td>
 </tr>
 <tr>
     <td><h3>Longitude</h3></td>
-    <td>[% long %]</td>
+    <td>[% long %] &deg;</td>
 </tr>
 <tr>
     <td colspan="2">
